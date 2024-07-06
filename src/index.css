@@ -19,7 +19,7 @@ code {
 .dashboard {
   padding: 20px;
 }
-/* src/components/KycReport.css */
+
 .risk-score {
   display: flex;
   align-items: center;
@@ -27,6 +27,14 @@ code {
 
 .risk-score.low {
   color: green;
+}
+
+.risk-score.medium {
+  color: orange;
+}
+
+.risk-score.high {
+  color: red;
 }
 
 table {

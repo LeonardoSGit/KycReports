@@ -1,27 +1,96 @@
-// src/components/Dashboard.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import KycReport from './KycReport';
 import PieChart from './PieChart';
+import { fetchApplications } from '../apiService';
+import StatusEnum from '../statusEnum';
+import RiskLevelsEnum from '../riskLevelsEnum';
 
 const Dashboard = () => {
-    const data = {
-        approved: 11,
-        rejected: 1,
-        cancelled: 1,
-        readyForReview: 10,
-        inProgress: 54
-    };
+    const [data, setData] = useState({
+        approved: 0,
+        rejected: 0,
+        cancelled: 0,
+        readyForReview: 0,
+        inProgress: 0,
+        customerProcessing: 0,
+        userAcceptedKYCInvitation: 0,
+        pending: 0,
+        verified: 0,
+        unverified: 0,
+        completed: 0,
+        unknown: 0
+    });
+    const [reports, setReports] = useState([]);
 
-    const reports = [
-        { created: 'May 15, 2024 14:12:27', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' },
-        { created: 'May 15, 2024 14:09:28', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'Not calculated', status: 'Customer Processing' },
-        { created: 'May 03, 2024 08:57:14', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' },
-        { created: 'May 03, 2024 08:39:35', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' },
-        { created: 'May 03, 2024 08:29:24', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' },
-        { created: 'May 01, 2024 10:05:06', name: 'sdasjd', type: 'aliascar2', riskScore: 'Not calculated', status: 'User Accepted KYC Invitation' },
-        { created: 'Mar 22, 2024 09:57:47', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' },
-        { created: 'Mar 22, 2024 08:53:16', name: 'KÁROLY-EDWARD RÁCZ', type: 'aliascar2', riskScore: 'LOW', status: 'Approved' }
-    ];
+    useEffect(() => {
+        const getApplications = async () => {
+            try {
+                const response = await fetchApplications();
+
+                const applications = response.items || [];
+                const mappedReports = applications.map(app => {
+                    let riskScore = RiskLevelsEnum.NOT_CALCULATED;
+                    if (app.riskScoring?.results?.length > 0) {
+                        const totalScores = app.riskScoring.results.map(result => result.total);
+                        const averageScore = totalScores.reduce((acc, score) => acc + score, 0) / totalScores.length;
+                        if (averageScore < 30) {
+                            riskScore = RiskLevelsEnum.LOW;
+                        } else if (averageScore >= 30 && averageScore < 70) {
+                            riskScore = RiskLevelsEnum.MEDIUM;
+                        } else {
+                            riskScore = RiskLevelsEnum.HIGH;
+                        }
+                    }
+                    return {
+                        created: app.createdAt,
+                        name: app.attributes.fullName || 'N/A',
+                        type: app.type,
+                        riskScore: riskScore,
+                        status: Object.values(StatusEnum).find(key => key === app.statusName) || StatusEnum.UNKNOWN
+                    };
+                });
+
+                setReports(mappedReports);
+
+                const statusCounts = mappedReports.reduce((acc, app) => {
+                    acc[app.status.toLowerCase().replace(/\s+/g, '')]++;
+                    return acc;
+                }, {
+                    approved: 0,
+                    rejected: 0,
+                    cancelled: 0,
+                    readyforreview: 0,
+                    inprogress: 0,
+                    customerprocessing: 0,
+                    useracceptedkycinvitation: 0,
+                    pending: 0,
+                    verified: 0,
+                    unverified: 0,
+                    completed: 0,
+                    unknown: 0
+                });
+                
+                setData({
+                    approved: statusCounts.approved,
+                    rejected: statusCounts.rejected,
+                    cancelled: statusCounts.cancelled,
+                    readyForReview: statusCounts.readyforreview,
+                    inProgress: statusCounts.inprogress,
+                    customerProcessing: statusCounts.customerprocessing,
+                    userAcceptedKYCInvitation: statusCounts.useracceptedkycinvitation,
+                    pending: statusCounts.pending,
+                    verified: statusCounts.verified,
+                    unverified: statusCounts.unverified,
+                    completed: statusCounts.completed,
+                    unknown: statusCounts.unknown
+                });
+            } catch (error) {
+                console.error('Error fetching applications:', error);
+            }
+        };
+
+        getApplications();
+    }, []);
 
     return (
         <div className="dashboard">
